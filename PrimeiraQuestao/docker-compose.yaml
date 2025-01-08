@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  #########################################################################
+  # 1) Servidor NFS (simulando EFS)
+  #########################################################################
+  nfs-server:
+    image: itsthenetwork/nfs-server-alpine:latest
+    container_name: nfs-server
+    privileged: true
+    environment:
+      - SHARED_DIRECTORY=/data
+      - CLIENTS=*(rw,sync,no_subtree_check,no_root_squash,insecure)
+    volumes:
+      - ./nfs-data:/data
+    ports:
+      - "2049:2049"
+    command: >
+      sh -c "
+        mkdir -p /data &&
+        chmod -R 777 /data && 
+        /usr/bin/supervisord -c /etc/supervisord.conf
+      "
+
+  #########################################################################
+  # 2) LocalStack (opcional, se necessário)
+  #########################################################################
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    environment:
+      - DEBUG=1
+      - SERVICES=s3,cloudformation,lambda,iam
+      - EDGE_PORT=4566
+      - AWS_DEFAULT_REGION=us-east-1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+
+  #########################################################################
+  # 3) Container "backup-runner"
+  #########################################################################
+  backup-runner:
+    image: ubuntu:22.04
+    container_name: backup-runner
+    depends_on:
+      - nfs-server
+    privileged: true
+    volumes:
+      - ./generate_test_files.py:/usr/local/bin/generate_test_files.py:ro
+      - ./manage_backups.py:/usr/local/bin/manage_backups.py:ro
+    entrypoint: >
+      bash -c "
+        apt-get update &&
+        apt-get install -y nfs-common python3 &&
+        mkdir -p /mnt/efs-simulada &&
+        # Monta o NFS vindo do serviço 'nfs-server'
+        mount -t nfs -o nfsvers=4 nfs-server:/data /mnt/efs-simulada &&
+        chmod -R 777 /mnt/efs-simulada &&
+        # Gera os arquivos de teste
+        python3 /usr/local/bin/generate_test_files.py &&
+        # Executa o script de backups
+        python3 /usr/local/bin/manage_backups.py
+      "
