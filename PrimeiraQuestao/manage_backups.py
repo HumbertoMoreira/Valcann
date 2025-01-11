@@ -10,10 +10,10 @@ LOGFROM = "/mnt/efs-simulada/backupsFrom.log"
 LOGTO = "/mnt/efs-simulada/backupsTo.log"
 THREE_DAYS_IN_SECONDS = 3 * 24 * 60 * 60
 
-# Configuração do logging
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Helper function to get file metadata
+
 def get_file_metadata(file_path):
     stats = os.stat(file_path)
     creation_time = time.ctime(stats.st_ctime)
@@ -21,7 +21,7 @@ def get_file_metadata(file_path):
     size = stats.st_size
     return creation_time, modification_time, size
 
-# 1) Listar arquivos em backupsFrom e salvar no log
+
 def log_files(directory, log_file):
     logging.info(f"Gerando log de arquivos em {directory}...")
     with open(log_file, 'w') as log:
@@ -33,7 +33,7 @@ def log_files(directory, log_file):
                 log.write(f"Nome: {file_name} | Tamanho: {size} bytes | Criado: {creation_time} | Modificado: {modification_time}\n")
     logging.info(f"Log de arquivos em {directory} concluído.")
 
-# 2) Remover arquivos "com data de criação superior a 3 dias"
+
 def remove_old_files(directory, threshold_seconds):
     logging.info(f"Removendo arquivos mais antigos que {threshold_seconds / (24 * 60 * 60)} dias em {directory}...")
     current_time = time.time()
@@ -46,7 +46,7 @@ def remove_old_files(directory, threshold_seconds):
                 logging.info(f"Arquivo removido: {file_name}")
     logging.info(f"Remoção de arquivos antigos em {directory} concluída.")
 
-# 3) Copiar arquivos "com 3 dias ou menos" para backupsTo
+
 def copy_recent_files(source_dir, destination_dir, threshold_seconds):
     logging.info(f"Copiando arquivos recentes de {source_dir} para {destination_dir}...")
     current_time = time.time()
@@ -60,20 +60,16 @@ def copy_recent_files(source_dir, destination_dir, threshold_seconds):
                 logging.info(f"Arquivo copiado: {file_name}")
     logging.info(f"Cópia de arquivos recentes concluída.")
 
-# 4) Gerar log de backupsTo
+
 def main():
     logging.info("Iniciando script de gerenciamento de backups...")
 
-    # Step 1: Log files in backupsFrom
     log_files(BACKUPSFROM, LOGFROM)
 
-    # Step 2: Remove old files from backupsFrom
     remove_old_files(BACKUPSFROM, THREE_DAYS_IN_SECONDS)
 
-    # Step 3: Copy recent files to backupsTo
     copy_recent_files(BACKUPSFROM, BACKUPSTO, THREE_DAYS_IN_SECONDS)
 
-    # Step 4: Log files in backupsTo
     log_files(BACKUPSTO, LOGTO)
 
     logging.info("Script finalizado com sucesso.")
